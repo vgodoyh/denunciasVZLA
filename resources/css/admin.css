@@ -1,0 +1,173 @@
+/* ==========================================
+   Estilos custom para el panel admin y login
+   (Argon Dashboard / Bootstrap)
+   No usar directivas de Tailwind aquí
+   ========================================== */
+
+/* ---------- LOGIN (body.auth-login-page) ---------- */
+
+body.auth-login-page {
+    background: linear-gradient(to bottom, #0a0a0a, #171717) !important;
+    background-attachment: fixed;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif !important;
+}
+
+body.auth-login-page .card,
+body.auth-login-page .form-control {
+    background-color: rgba(255, 255, 255, 0.06) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+}
+
+body.auth-login-page .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.4) !important;
+}
+
+body.auth-login-page .form-control:focus {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    box-shadow: none !important;
+}
+
+body.auth-login-page label,
+body.auth-login-page h1,
+body.auth-login-page h2,
+body.auth-login-page h3,
+body.auth-login-page h4,
+body.auth-login-page h5,
+body.auth-login-page .form-check-label,
+body.auth-login-page p,
+body.auth-login-page span,
+body.auth-login-page small {
+    color: #fff !important;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif !important;
+}
+
+body.auth-login-page p.text-muted,
+body.auth-login-page small.text-muted {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+body.auth-login-page a {
+    color: #fff !important;
+}
+
+body.auth-login-page .btn-dark {
+    background-color: #fff !important;
+    border-color: #fff !important;
+    color: #000 !important;
+}
+
+body.auth-login-page .btn-dark:hover {
+    background-color: rgba(255, 255, 255, 0.85) !important;
+    color: #000 !important;
+}
+
+body.auth-login-page .form-check-input {
+    background-color: rgba(255, 255, 255, 0.06) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    box-shadow: none !important;
+}
+
+body.auth-login-page .form-check-input:checked {
+    background-color: #fff !important;
+    border-color: #fff !important;
+}
+
+body.auth-login-page .form-check-input:checked[type="checkbox"] {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23000' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M6 10l3 3l6-6'/%3e%3c/svg%3e") !important;
+}
+
+body.auth-login-page .form-check-input:focus {
+    box-shadow: 0 0 0 0.15rem rgba(255, 255, 255, 0.25) !important;
+    border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+body.auth-login-page .input-group .form-control {
+    border-right: none !important;
+}
+
+body.auth-login-page .input-group .btn-outline-secondary {
+    background-color: rgba(255, 255, 255, 0.06) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    border-left: none !important;
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+body.auth-login-page .input-group .btn-outline-secondary:hover,
+body.auth-login-page .input-group .btn-outline-secondary:focus {
+    background-color: rgba(255, 255, 255, 0.06) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+    box-shadow: none !important;
+}
+
+body.auth-login-page .input-group:focus-within .form-control,
+body.auth-login-page .input-group:focus-within .btn-outline-secondary {
+    border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+body.auth-login-page .input-group .form-control,
+body.auth-login-page .input-group .btn-outline-secondary {
+    height: 38px;
+    line-height: 1.5;
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+    box-sizing: border-box;
+}
+
+body.auth-login-page .input-group .btn-outline-secondary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+body.auth-login-page .form-control {
+    height: 38px;
+    line-height: 1.5;
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+    box-sizing: border-box;
+}
+
+body.auth-login-page #togglePassword:hover,
+body.auth-login-page #togglePassword:focus {
+    background-color: rgba(255, 255, 255, 0.06) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: rgba(255, 255, 255, 0.6) !important;
+    box-shadow: none !important;
+}
+
+body.auth-login-page #togglePassword.btn:hover {
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+body.auth-login-page input:-webkit-autofill,
+body.auth-login-page input:-webkit-autofill:hover,
+body.auth-login-page input:-webkit-autofill:focus,
+body.auth-login-page input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px rgba(255, 255, 255, 0.06) inset !important;
+    -webkit-text-fill-color: #fff !important;
+    caret-color: #fff !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+/* ---------- DASHBOARD / PANEL ADMIN ---------- */
+
+.navbar-main .dropdown-menu {
+    margin-top: 0.5rem !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+    border: none !important;
+    min-width: 160px;
+}
+
+.navbar-main .dropdown-item {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    transition: background-color 0.15s ease;
+}
+
+.navbar-main .dropdown-item:hover {
+    background-color: rgba(0, 0, 0, 0.04) !important;
+}

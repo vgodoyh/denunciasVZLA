@@ -1,0 +1,37 @@
+<?php
+
+namespace App\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class TipoDenunciaEditRequest extends FormRequest
+{
+    /**
+     * Determine if the user is authorized to make this request.
+     *
+     * @return bool
+     */
+    public function authorize()
+    {
+        return true;
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array
+     */
+    public function rules()
+    {
+        $tipo_denuncia = $this->route('tipo_denuncia');
+        return [
+            'name' => ['required', 'unique:tipo_denuncia,name,' . $tipo_denuncia->id]
+        ];
+    }
+    public function attributes()
+    {
+        return [
+            'name' => 'nombre del tipo de denuncia',
+        ];
+    }
+}
