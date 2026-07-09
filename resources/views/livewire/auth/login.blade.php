@@ -11,7 +11,7 @@
             </div>
         @endif
 
-        <x-passkey-verify />
+        {{-- <x-passkey-verify /> --}}
 
         <form method="POST" action="{{ route('login.store') }}" class="d-flex flex-column gap-3">
             @csrf
