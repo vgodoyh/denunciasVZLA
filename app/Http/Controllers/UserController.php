@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Gate;
 use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
     public function index()
     {
+        abort_if(Gate::denies('usuario_index'),403);
         $users = User::with('roles')->orderBy('id', 'desc')->get();
 
         return view('users.index', compact('users'));
@@ -18,6 +20,8 @@ class UserController extends Controller
 
     public function create()
     {
+        abort_if(Gate::denies('usuario_create'),403);
+
         $roles = Role::orderBy('name')->get();
 
         return view('users.create', compact('roles'));
@@ -56,6 +60,8 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
+        abort_if(Gate::denies('usuario_edit'),403);
+
         $roles = Role::orderBy('name')->get();
         $userRoles = $user->roles->pluck('id')->toArray();
 
@@ -89,6 +95,8 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
+        abort_if(Gate::denies('usuario_destroy'),403);
+
         if ($user->id === auth()->id()) {
             return redirect()->route('user.index')->with('eliminar', 'no-eliminar');
         }

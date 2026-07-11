@@ -98,40 +98,44 @@
                     <span class="nav-link-text ms-1">Palabras claves</span>
                 </a>
             </li>
+            @can('menu_seguridad')
+                <li class="nav-item mt-3">
+                    <h6 class="ps-4 ms-2 text-uppercase text-xs font-weight-bolder text-white opacity-6">
+                        Seguridad del Sistema
+                    </h6>
+                </li>
 
-            <li class="nav-item mt-3">
-                <h6 class="ps-4 ms-2 text-uppercase text-xs font-weight-bolder text-white opacity-6">
-                    Seguridad del Sistema
-                </h6>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link text-white" href="{{route('permission.index')}}">
-                    <div class="icon icon-shape icon-sm text-center me-2 d-flex align-items-center justify-content-center">
-                        <i class="fa-solid fa-unlock text-sm"></i>
-                    </div>
-                    <span class="nav-link-text ms-1">Permisos</span>
-                </a>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link text-white" href="{{route('role.index')}}">
-                    <div class="icon icon-shape icon-sm text-center me-2 d-flex align-items-center justify-content-center">
-                        <i class="fa-solid fa-gear text-sm"></i>
-                    </div>
-                    <span class="nav-link-text ms-1">Roles</span>
-                </a>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link text-white" href="{{route('user.index')}}">
-                    <div class="icon icon-shape icon-sm text-center me-2 d-flex align-items-center justify-content-center">
-                        <i class="fa-solid fa-users text-sm"></i>
-                    </div>
-                    <span class="nav-link-text ms-1">Usuarios</span>
-                </a>
-            </li>
-
+                @can('permisos_index')
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{{route('permission.index')}}">
+                            <div class="icon icon-shape icon-sm text-center me-2 d-flex align-items-center justify-content-center">
+                                <i class="fa-solid fa-unlock text-sm"></i>
+                            </div>
+                            <span class="nav-link-text ms-1">Permisos</span>
+                        </a>
+                    </li>
+                @endcan
+                @can('rol_index')
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{{route('role.index')}}">
+                            <div class="icon icon-shape icon-sm text-center me-2 d-flex align-items-center justify-content-center">
+                                <i class="fa-solid fa-gear text-sm"></i>
+                            </div>
+                            <span class="nav-link-text ms-1">Roles</span>
+                        </a>
+                    </li>
+                @endcan
+                @can('usuario_index')
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{{route('user.index')}}">
+                            <div class="icon icon-shape icon-sm text-center me-2 d-flex align-items-center justify-content-center">
+                                <i class="fa-solid fa-users text-sm"></i>
+                            </div>
+                            <span class="nav-link-text ms-1">Usuarios</span>
+                        </a>
+                    </li>
+                @endcan
+            @endcan
         </ul>
     </div>
 

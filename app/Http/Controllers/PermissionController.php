@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -10,12 +12,16 @@ class PermissionController extends Controller
 {
     public function index()
     {
+        abort_if(Gate::denies('permiso_index'),403);
+
         $permission = Permission::orderBy('id', 'desc')->get();
         return view('permission.index', compact('permission'));
     }
 
     public function create()
     {
+        abort_if(Gate::denies('permiso_create'),403);
+
         return view('permission.create');
     }
 
@@ -37,6 +43,8 @@ class PermissionController extends Controller
 
     public function edit(Permission $permission)
     {
+        abort_if(Gate::denies('permiso_edit'),403);
+
         return view('permission.edit', compact('permission'));
     }
 
@@ -58,6 +66,8 @@ class PermissionController extends Controller
 
     public function destroy(Permission $permission)
     {
+        abort_if(Gate::denies('permiso_destroy'),403);
+
         $permission->delete();
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
