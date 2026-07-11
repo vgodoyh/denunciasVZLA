@@ -55,17 +55,19 @@
             </li>
 
             <li class="nav-item">
-                <a class="nav-link {{ request()->routeIs('emisor.*') || request()->routeIs('tipo_emisor.*') || request()->routeIs('tipo_red_social.*') ? '' : 'collapsed' }}"
+                <a class="nav-link text-white {{ request()->routeIs('emisor.*') || request()->routeIs('tipo_emisor.*') || request()->routeIs('tipo_red_social.*') ? '' : 'collapsed' }}"
                 data-bs-toggle="collapse"
                 href="#submenu-emisor"
                 aria-expanded="{{ request()->routeIs('emisor.*') || request()->routeIs('tipo_emisor.*') || request()->routeIs('tipo_red_social.*') ? 'true' : 'false' }}">
-                    <i class="fas fa-bullhorn text-white"></i>
+                    <div class="icon icon-shape icon-sm text-center me-2 d-flex align-items-center justify-content-center">
+                        <i class="fas fa-bullhorn text-sm"></i>
+                    </div>
                     <span class="nav-link-text ms-1">Emisor</span>
                 </a>
 
                 <div class="collapse {{ request()->routeIs('emisor.*') || request()->routeIs('tipo_emisor.*') || request()->routeIs('tipo_red_social.*') ? 'show' : '' }}"
                     id="submenu-emisor">
-                    <ul class="nav ms-3">
+                    <ul class="nav ms-4">
                         <li class="nav-item">
                             <a class="nav-link {{ request()->routeIs('emisor.*') ? 'active' : '' }}" href="{{ route('emisor.index') }}">
                                 <span class="sidenav-mini-icon"><i class="fas fa-circle" style="font-size:5px;"></i></span>
@@ -144,5 +146,4 @@
             </div>
         </div>
     </div>
-
 </aside>

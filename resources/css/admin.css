@@ -171,3 +171,18 @@ body.auth-login-page input:-webkit-autofill:active {
 .navbar-main .dropdown-item:hover {
     background-color: rgba(0, 0, 0, 0.04) !important;
 }
+
+.nav-link .submenu-arrow {
+    transition: transform 0.2s ease;
+    font-size: 0.75rem;
+    opacity: 1 !important;
+    color: #ffffff !important;
+}
+
+.nav-link.collapsed .submenu-arrow {
+    transform: rotate(0deg);
+}
+
+.nav-link:not(.collapsed) .submenu-arrow {
+    transform: rotate(180deg);
+}
