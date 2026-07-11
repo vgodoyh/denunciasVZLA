@@ -16,8 +16,8 @@ class TipoDenuncia extends Model
     protected $fillable = ['name','descripcion','activo'];
 
     //Relacion (UNO) denuncia
-    public function denuncia(){
-        return $this->hasMany( Denuncia::class);
+    public function denuncia()
+    {
+        return $this->hasMany(Denuncia::class, 'tipodenuncia_id');
     }
-
 }

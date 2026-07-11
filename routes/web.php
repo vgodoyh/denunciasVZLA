@@ -51,7 +51,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->parameters(['tipo_emisor' => 'tipo_emisor']);
    
 
-    Route::resource('denuncia', DenunciaController::class);
+    Route::resource('denuncia', DenunciaController::class)
+         ->parameters(['denuncia' => 'denuncia']);
     
     Route::prefix('emisor')->name('emisor.')->group(function () {
         Route::get('papelera', [EmisorController::class, 'papelera'])->name('papelera');
@@ -82,12 +83,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         'palabras_claves' => 'palabras_clave'
     ])->names('palabras_clave');
 
-    Route::resource('user', UserController::class);
 
+    Route::resource('user', UserController::class);
     Route::resource('permission', PermissionController::class);
     Route::resource('role', RoleController::class);
-
-
 
 });
 

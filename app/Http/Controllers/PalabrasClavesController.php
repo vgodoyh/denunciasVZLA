@@ -7,11 +7,20 @@ use Illuminate\Http\Request;
 
 class PalabrasClavesController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $palabrasClaves = PalabrasClaves::orderBy('id', 'desc')->get();
+        $perPage = $request->get('perPage', '10');
 
-        return view('palabras_claves.index', compact('palabrasClaves'));
+        $query = PalabrasClaves::when($request->filled('buscar'), function ($q) use ($request) {
+                $q->where('palabra', 'like', '%' . $request->buscar . '%');
+            })
+            ->orderBy('id', 'desc');
+
+        $palabrasClaves = $perPage === 'all'
+            ? $query->get()
+            : $query->paginate((int) $perPage)->withQueryString();
+
+        return view('palabras_claves.index', compact('palabrasClaves', 'perPage'));
     }
 
     public function create()

@@ -13,6 +13,42 @@
         </div>
 
         <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+
+                <div class="d-flex align-items-center col-6" style="gap: 8px;">
+                    <span class="text-xs" style="color: #67748e;">Mostrar</span>
+                    <div class="d-inline-flex" style="background: #F1EFE8; padding: 2px; border-radius: 6px; gap: 2px;">
+                        @foreach (['10' => '10', '50' => '50', 'all' => 'Todos'] as $val => $label)
+                            <a href="{{ route('palabras_clave.index', array_merge(request()->except('page'), ['perPage' => $val])) }}"
+                               class="border-0 perpage-pill text-decoration-none {{ (string) $perPage === (string) $val ? 'active' : '' }}"
+                               style="padding: 3px 12px; font-size: 11px; font-weight: 600; border-radius: 4px;">
+                                {{ $label }}
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+                <form action="{{ route('palabras_clave.index') }}" method="GET" class="flex-grow-1 me-3">
+                    <input type="hidden" name="perPage" value="{{ $perPage }}">
+                    <div class="input-group">
+                        <input type="text"
+                               name="buscar"
+                               class="form-control"
+                               placeholder="Buscar por palabra..."
+                               value="{{ request('buscar') }}">
+
+                        <button type="submit" class="btn btn-dark">
+                            <i class="fas fa-search"></i>
+                        </button>
+
+                        @if (request('buscar'))
+                            <a href="{{ route('palabras_clave.index', ['perPage' => $perPage]) }}" class="btn btn-outline-dark">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        @endif
+                    </div>
+                </form>
+            </div>
+
             <div class="table-responsive">
                 <table class="table table-hover align-items-center mb-0">
                     <thead class="bg-gray-100">
@@ -70,6 +106,12 @@
                     </tbody>
                 </table>
             </div>
+
+            @if ($perPage !== 'all')
+                <div class="mt-3">
+                    {{ $palabrasClaves->links('pagination::bootstrap-5') }}
+                </div>
+            @endif
         </div>
     </div>
 

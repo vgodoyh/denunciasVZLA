@@ -15,9 +15,9 @@ class Estado extends Model
     
     protected $fillable = ['name','activo'];
 
-    //Relacion (UNO) localidad-estado
-    public function denuncia_estado(){
-        return $this->hasMany(DenunciaEstado::class);
+    public function denuncias(){
+        return $this->belongsToMany(Denuncia::class, 'denuncia_estado', 'estado_id', 'denuncia_id')
+                    ->withTimestamps();
     }
     
 }
