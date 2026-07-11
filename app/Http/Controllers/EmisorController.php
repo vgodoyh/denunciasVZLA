@@ -11,11 +11,21 @@ use Illuminate\Support\Facades\DB;
 
 class EmisorController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $emisores = Emisor::with('tipoemisor')->orderBy('id', 'desc')->get();
+        $perPage = $request->get('perPage', '10');
 
-        return view('emisor.index', compact('emisores'));
+        $query = Emisor::with(['tipoemisor', 'emisor_red_social.tipo_red_social'])
+            ->when($request->filled('buscar'), function ($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->buscar . '%');
+            })
+            ->orderBy('id', 'desc');
+
+        $emisores = $perPage === 'all'
+            ? $query->get()
+            : $query->paginate((int) $perPage)->withQueryString();
+
+        return view('emisor.index', compact('emisores', 'perPage'));
     }
 
     public function create()

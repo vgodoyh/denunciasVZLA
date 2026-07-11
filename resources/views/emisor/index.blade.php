@@ -13,6 +13,43 @@
         </div>
 
         <div class="card-body">
+            <div class="row">                          
+                <div class="d-flex align-items-center justify-content-between mb-3 col-6">
+                    <div class="d-flex align-items-center" style="gap: 8px;">
+                        <span class="text-xs" style="color: #67748e;">Mostrar</span>
+                        <div class="d-inline-flex" style="background: #F1EFE8; padding: 2px; border-radius: 6px; gap: 2px;">
+                            @foreach (['10' => '10', '50' => '50', 'all' => 'Todos'] as $val => $label)
+                                <a href="{{ route('emisor.index', array_merge(request()->except('page'), ['perPage' => $val])) }}"
+                                class="border-0 perpage-pill text-decoration-none {{ (string) $perPage === (string) $val ? 'active' : '' }}"
+                                style="padding: 3px 12px; font-size: 11px; font-weight: 600; border-radius: 4px;">
+                                    {{ $label }}
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 align-items-center">
+                    <form action="{{ route('emisor.index') }}" method="GET" class="mb-3">
+                        <div class="input-group">
+                            <input type="text"
+                                name="buscar"
+                                class="form-control"
+                                placeholder="Buscar por nombre..."
+                                value="{{ request('buscar') }}">
+
+                            <button type="submit" class="btn btn-dark">
+                                <i class="fas fa-search"></i>
+                            </button>
+
+                            @if (request('buscar'))
+                                <a href="{{ route('emisor.index') }}" class="btn btn-outline-dark">
+                                    <i class="fas fa-times"></i>
+                                </a>
+                            @endif
+                        </div>
+                    </form>
+                </div>
+            </div>
             <div class="table-responsive">
                 <table class="table table-hover align-items-center mb-0">
                     <thead class="bg-gray-100">
@@ -20,6 +57,7 @@
                             <th class="text-sm text-bold ps-2">ID</th>
                             <th class="text-sm text-bold ps-2">Nombre</th>
                             <th class="text-sm text-bold ps-2">Tipo de emisor</th>
+                            <th class="text-sm text-bold ps-2">Redes sociales</th>
                             <th class="text-sm text-bold ps-2">Estado</th>
                             <th class="text-sm text-bold text-end">Acciones</th>
                         </tr>
@@ -30,6 +68,26 @@
                                 <td>{{ $item->id }}</td>
                                 <td>{{ $item->name }}</td>
                                 <td>{{ $item->tipoemisor->name ?? '—' }}</td>
+                                <td>
+                                    @forelse ($item->emisor_red_social->take(3) as $red)
+                                        <span class="d-inline-flex align-items-center px-2 py-1 rounded-pill mb-1 me-1 text-xs font-weight-600 text-info"
+                                              style="background:#EAF2FB; border:1px solid #2D6DA3; width:fit-content;">
+                                            {{ $red->tipo_red_social->name ?? '—' }}
+                                        </span>
+                                    @empty
+                                        <span class="d-inline-flex align-items-center px-2 py-1 rounded-pill mb-1 text-xs font-weight-600 text-danger"
+                                              style="background:#FCEBEB; border:1px solid #A32D2D; width:fit-content;">
+                                            Sin redes
+                                        </span>
+                                    @endforelse
+
+                                    @if ($item->emisor_red_social->count() > 3)
+                                        <span class="d-inline-flex align-items-center px-2 py-1 rounded-pill mb-1 text-xs font-weight-600 bg-gray-100 text-muted"
+                                              style="border:1px solid #dee2e6; width:fit-content;">
+                                            +{{ $item->emisor_red_social->count() - 3 }}
+                                        </span>
+                                    @endif
+                                </td>
                                 <td>
                                     @if ($item->activo)
                                         <span class="d-inline-flex align-items-center px-2 py-1 rounded-pill text-xs font-weight-600 text-success"
@@ -71,12 +129,18 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="text-center text-muted">No hay emisores registrados.</td>
+                                <td colspan="6" class="text-center text-muted">No hay emisores registrados.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
+
+            @if ($perPage !== 'all')
+                <div class="mt-3">
+                    {{ $emisores->links('pagination::bootstrap-5') }}
+                </div>
+            @endif
         </div>
     </div>
 

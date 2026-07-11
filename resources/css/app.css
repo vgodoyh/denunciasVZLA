@@ -217,3 +217,31 @@ body.auth-login-page input:-webkit-autofill:active {
     caret-color: #fff !important;
     transition: background-color 5000s ease-in-out 0s;
 }
+.input-group {
+    display: flex;
+    flex-wrap: nowrap;
+}
+
+.input-group > .form-control,
+.input-group > .btn {
+    position: relative;
+    flex: 1 1 auto;
+    width: 1%;
+    margin: 0;
+    border-radius: 0;
+}
+
+.input-group > .btn {
+    flex: 0 0 auto;
+    width: auto;
+}
+
+.input-group > :first-child {
+    border-top-left-radius: 0.5rem;
+    border-bottom-left-radius: 0.5rem;
+}
+
+.input-group > :last-child {
+    border-top-right-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+}
