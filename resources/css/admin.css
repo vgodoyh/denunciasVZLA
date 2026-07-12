@@ -227,3 +227,22 @@ body.auth-login-page input:-webkit-autofill:active {
 .perpage-pill:hover:not(.active) {
     background: #e9e6dc;
 }
+
+.sidenav-toggler-line {
+    position: relative;
+    width: 20px;
+    height: 2px;
+    display: block;
+    background: #6c757d;
+    border-radius: 1px;
+    margin: 4px 0;
+    transition: all 0.15s ease;
+}
+
+.sidenav-toggler-inner {
+    cursor: pointer;
+}
+
+.sidenav-toggler-inner:hover .sidenav-toggler-line {
+    background: #344767;
+}

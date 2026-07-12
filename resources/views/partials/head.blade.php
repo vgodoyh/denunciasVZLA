@@ -5,8 +5,8 @@
     {{ filled($title ?? null) ? $title.' - '.config('app.name', 'Denuncias Vzla') : config('app.name', 'Denuncias Vzla') }}
 </title>
 
-<link rel="icon" href="/favicon.ico" sizes="any">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="{{ asset('assets/img/favicon.png') }}" sizes="any">
+<link rel="icon" href="{{ asset('assets/img/favicon.png') }}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
 @fonts

@@ -14,6 +14,7 @@ class DenunciaController extends Controller
     public function index(Request $request)
     {
         $perPage = $request->get('perPage', '10');
+        $estatus = $request->get('estatus', 'pendiente'); // default: pendientes
 
         $query = Denuncia::with(['emisor_red_social.emisor', 'tipoDenuncia'])
             ->when($request->filled('buscar'), function ($q) use ($request) {
@@ -22,8 +23,8 @@ class DenunciaController extends Controller
                         ->orWhere('url', 'like', '%' . $request->buscar . '%');
                 });
             })
-            ->when($request->filled('estatus'), function ($q) use ($request) {
-                $q->where('estatus', $request->estatus);
+            ->when($estatus !== 'todos', function ($q) use ($estatus) {
+                $q->where('estatus', $estatus);
             })
             ->orderBy('id', 'desc');
 
@@ -31,9 +32,9 @@ class DenunciaController extends Controller
             ? $query->get()
             : $query->paginate((int) $perPage)->withQueryString();
 
-        return view('denuncia.index', compact('denuncias', 'perPage'));
+        return view('denuncia.index', compact('denuncias', 'perPage', 'estatus'));
     }
-
+    
     public function create()
     {
         $emisoresRedSocial = EmisorRedSocial::with('emisor')

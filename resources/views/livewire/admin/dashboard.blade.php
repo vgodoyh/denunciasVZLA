@@ -10,18 +10,20 @@
 
     <div class="row mb-2">
         <div class="col-md-3 mb-2">
-            <div class="card">
-                <div class="card-body d-flex align-items-center">
-                    <div class="d-flex align-items-center justify-content-center rounded me-3"
-                        style="width:40px; height:40px; background:#F1EFE8;">
-                        <i class="fas fa-hourglass-half" style="font-size:1.1rem; color:#888780;"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm text-muted mb-1">Pendientes</p>
-                        <p class="text-bold mb-0" style="font-size: 1.5rem; color:#888780;">{{ $pendientes }}</p>
+            <a href="{{ route('denuncia.index') }}" class="cursor-pointer">
+                <div class="card">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="d-flex align-items-center justify-content-center rounded me-3"
+                            style="width:40px; height:40px; background:#F1EFE8;">
+                            <i class="fas fa-hourglass-half" style="font-size:1.1rem; color:#888780;"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-muted mb-1">Pendientes</p>
+                            <p class="text-bold mb-0" style="font-size: 1.5rem; color:#888780;">{{ $pendientes }}</p>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
 
         <div class="col-md-3 mb-2">

@@ -1,6 +1,12 @@
 <nav class="navbar navbar-main navbar-expand-lg px-0 mx-4 shadow-none border-radius-xl" id="navbarBlur" data-scroll="false">
     <div class="container-fluid py-1 px-3">
-
+        <div class="sidenav-toggler sidenav-toggler-inner d-xl-none d-block">
+            <button class="btn btn-link p-0" id="iconNavbarSidenav">
+                <i class="sidenav-toggler-line"></i>
+                <i class="sidenav-toggler-line"></i>
+                <i class="sidenav-toggler-line"></i>
+            </button>
+        </div>
         <nav aria-label="breadcrumb">
             
         </nav>
@@ -13,11 +19,11 @@
                 </a>
 
                 <ul class="dropdown-menu dropdown-menu-end px-2 py-3">
-                    <li>
+                    {{-- <li>
                         <a class="dropdown-item border-radius-md" href="{{ route('profile.edit') }}">
                             Perfil
                         </a>
-                    </li>
+                    </li> --}}
 
                     <li>
                         <form method="POST" action="{{ route('logout') }}">

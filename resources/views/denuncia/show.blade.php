@@ -10,7 +10,7 @@
             <div class="d-flex align-items-center justify-content-between mb-4">
                 <div class="d-flex align-items-center">
                     <div class="d-flex align-items-center justify-content-center rounded-circle bg-gray-800 me-3"
-                         style="width:56px; height:56px; border: 2px solid #A32D2D;">
+                         style="width:56px; height:56px; border: 2px solid #A32D2D;flex-shrink: 0;">
                         <i class="fas fa-flag text-light" style="font-size:1.2rem;"></i>
                     </div>
                     <div>
