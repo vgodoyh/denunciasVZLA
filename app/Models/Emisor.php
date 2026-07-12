@@ -25,7 +25,7 @@ class Emisor extends Model
         return $this->hasMany(EmisorRedSocial::class);
     }
 
-    //Relacion (UNO) emisor_redsocial
+    //Relacion (UNO) denuncia
     public function denuncia(){
         return $this->hasMany(Denuncia::class);
     }

@@ -2,9 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Denuncia;
 use App\Models\EmisorRedSocial;
-use App\Models\NoticiaTemporal;
-use App\Models\Noticia;
+use App\Helpers\KeywordMatcher;
+use App\Models\PalabrasClaves;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
@@ -12,9 +13,9 @@ use Illuminate\Support\Facades\Log;
 
 class DenunciasInstagram extends Command
 {
-    protected $signature = 'denuncias:instagram';
+    protected $signature = 'denuncias:instagram {--desde=2026-06-24 : Fecha desde la cual capturar} {--hasta= : Fecha límite superior (opcional)}';
 
-    protected $description = 'Monitorea Instagram y guarda denuncias';
+    protected $description = 'Monitorea Instagram (vía Apify) y guarda denuncias de acuerdo a palabras claves';
 
     private string $timezone = 'America/Caracas';
 
@@ -22,33 +23,42 @@ class DenunciasInstagram extends Command
     {
         $this->info('▶ Iniciando denuncias:instagram');
 
-        $desde = now($this->timezone)->subDay()->startOfDay();
-        $hasta = now($this->timezone)->subDay()->endOfDay();
+        $desde = Carbon::parse($this->option('desde'), $this->timezone)->startOfDay();
+        $hasta = $this->option('hasta')
+            ? Carbon::parse($this->option('hasta'), $this->timezone)->endOfDay()
+            : null;
 
-        $this->line("Buscando publicaciones desde {$desde->format('d/m/Y H:i:s')} hasta {$hasta->format('d/m/Y H:i:s')}");
+        $this->line("Buscando publicaciones desde {$desde->format('d/m/Y H:i:s')}" . ($hasta ? " hasta {$hasta->format('d/m/Y H:i:s')}" : ' en adelante'));
 
         $norm = function (?string $s): string {
             $s = mb_strtolower(trim((string) $s));
-
             return strtr($s, [
-                'á' => 'a',
-                'é' => 'e',
-                'í' => 'i',
-                'ó' => 'o',
-                'ú' => 'u',
-                'ü' => 'u',
-                'ñ' => 'n',
+                'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n',
             ]);
         };
 
-        $canalesInstagram = EmisorRedSocial::with([
-                'emisor.tipoemisor',
-                'redsocial.palabras_claves',
-            ])
-            ->whereHas('tipo_red_social', function ($q) {
-                $q->whereRaw('UPPER(name) = ?', ['INSTAGRAM']);
-            })
-            ->get();
+        /* =====================================================
+         * Palabras clave GLOBALES (activas), mismas que en denuncias:web
+         * ===================================================== */
+        $palabrasClave = PalabrasClaves::where('activo', 1)
+            ->pluck('palabra')
+            ->map(fn ($p) => $norm($p))
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
+
+        if (empty($palabrasClave)) {
+            $this->warn('No hay palabras clave activas, se aborta la corrida.');
+            return Command::SUCCESS;
+        }
+
+        $canalesInstagram = EmisorRedSocial::with(['emisor.tipoemisor', 'tipo_red_social'])
+                                            ->whereHas('tipo_red_social', function ($q) {
+                                                $q->whereRaw('UPPER(name) = ?', ['INSTAGRAM']);
+                                            })
+                                            ->where('name', ['esteninf'])
+                                            ->get();
 
         if ($canalesInstagram->isEmpty()) {
             $this->warn('No hay canales Instagram configurados');
@@ -58,19 +68,14 @@ class DenunciasInstagram extends Command
         foreach ($canalesInstagram as $canal) {
             $username = $this->normalizarUsuarioInstagram($canal->name);
 
+            if (!$username) {
+                continue;
+            }
+
             $this->line('');
             $this->line("Procesando Instagram: {$username}");
 
             try {
-
-                $tipo = $norm(optional(optional($canal->emisor)->tipoemisor)->name);
-                $esPeriodico = ($tipo === 'periodico');
-
-                if ($esPeriodico) {
-                    $this->warn("Omitido: {$username} es periódico");
-                    continue;
-                }
-
                 $posts = $this->obtenerPublicaciones($username);
 
                 if (empty($posts)) {
@@ -82,65 +87,57 @@ class DenunciasInstagram extends Command
 
                 foreach ($posts as $post) {
                     $fechaPost = $this->parseFecha(
-                        $post['timestamp']
-                        ?? $post['date']
-                        ?? $post['takenAt']
-                        ?? null
+                        $post['timestamp'] ?? $post['date'] ?? $post['takenAt'] ?? null
                     );
-
-                    $url = $post['url'] ?? $post['permalink'] ?? null;
-                    $caption = $post['caption'] ?? $post['text'] ?? '';
-
-                    $this->line('----------------------------------------');
-                    $this->line('Fecha: ' . ($fechaPost ? $fechaPost->format('d/m/Y H:i:s') : 'sin fecha'));
-                    $this->line('URL: ' . ($url ?: 'sin url'));
-                    $this->line('Texto: ' . mb_substr(trim($caption), 0, 120));
 
                     if (!$fechaPost) {
                         $this->warn('Omitido: publicación sin fecha');
                         continue;
                     }
 
-                    if (!$fechaPost->between($desde, $hasta)) {
-                        $this->warn('Omitido: no corresponde al día anterior');
+                    if ($fechaPost->lt($desde) || ($hasta && $fechaPost->gt($hasta))) {
+                        $this->warn('Omitido: fuera del rango de fechas');
                         continue;
                     }
+
+                    $url = $post['url'] ?? $post['permalink'] ?? null;
 
                     if (!$url) {
                         $this->warn('Omitido: publicación sin URL');
                         continue;
                     }
 
-                    $existeEnTemporal = NoticiaTemporal::withTrashed()
-                        ->where('url', $url)
-                        ->exists();
+                    $caption = $post['caption'] ?? $post['text'] ?? '';
 
-                    $existeEnNoticia = Noticia::withTrashed()
-                        ->where('url', $url)
-                        ->exists();
+                    $texto = $norm($caption);
 
-                    if ($existeEnTemporal || $existeEnNoticia) {
-                        $this->warn('Omitido: URL ya existe en noticia_temporal o noticia');
+                    if (!KeywordMatcher::matches($texto, $palabrasClave)) {
                         continue;
                     }
 
-                    $noticia = NoticiaTemporal::create([
-                        'fecha'      => $fechaPost,
-                        'plataforma' => 'instagram',
-                        'titular'    => $this->generarTitular($caption, $username),
-                        'contenido'  => $caption,
-                        'autor'      => optional($canal->emisor)->name ?? $username,
-                        'estatus'    => 'pendiente',
+                    $existeEnDenuncia = Denuncia::withTrashed()
+                        ->where('url', $url)
+                        ->exists();
 
-                        'tipo_emisor_id' => $canal->emisor?->tipoemisor?->id,
-                        'emisor_id'      => $canal->emisor?->id,
-                        'red_social_id'  => $canal->id,
+                    if ($existeEnDenuncia) {
+                        $this->warn("Omitido: URL ya existe, incluso eliminada: {$url}");
+                        continue;
+                    }
+
+                    Denuncia::create([
+                        'fecha'              => $fechaPost,
+                        'url'                => $url,
+                        'titular'            => $this->generarTitular($caption, $username),
+                        'contenido'          => $caption,
+                        'estatus'            => 'pendiente',
+                        'emisor_id'          => $canal->emisor?->id,
+                        'emisorredsocial_id' => $canal->id,
                     ]);
 
-                    $this->info('Guardado en noticia_temporal');
+                    $this->info("Guardado en denuncia: {$url}");
                 }
             } catch (\Throwable $e) {
-                Log::error('Error en monitor:instagram', [
+                Log::error('Error en denuncias:instagram', [
                     'canal' => $canal->name,
                     'error' => $e->getMessage(),
                 ]);
@@ -151,7 +148,7 @@ class DenunciasInstagram extends Command
             sleep(2);
         }
 
-        $this->info('✔ monitor:instagram finalizado');
+        $this->info('✔ denuncias:instagram finalizado');
 
         return Command::SUCCESS;
     }
@@ -164,9 +161,7 @@ class DenunciasInstagram extends Command
             ->post(
                 "https://api.apify.com/v2/acts/{$actor}/run-sync-get-dataset-items?token=" . config('services.apify.token'),
                 [
-                    'directUrls' => [
-                        "https://www.instagram.com/{$username}/",
-                    ],
+                    'directUrls' => ["https://www.instagram.com/{$username}/"],
                     'resultsType' => 'posts',
                     'resultsLimit' => (int) config('services.apify.instagram_limit', 10),
                 ]
@@ -175,7 +170,6 @@ class DenunciasInstagram extends Command
         if (!$response->successful()) {
             $this->warn("Apify respondió con error {$response->status()}");
             $this->line($response->body());
-
             return [];
         }
 

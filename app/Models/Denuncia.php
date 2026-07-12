@@ -14,9 +14,13 @@ class Denuncia extends Model
     protected $table = "denuncia";
 
     protected $fillable = [
-        'fecha', 'url', 'titular', 'contenido', 'observacion',
+        'fecha', 'url', 'titular', 'contenido', 'observacion', 'emisor_id',
         'emisorredsocial_id', 'tipodenuncia_id', 'user_id', 'estatus',
     ];
+
+    public function emisor(){
+        return $this->belongsTo(Emisor::class, 'emisor_id');
+    }
 
     public function emisor_red_social(){
         return $this->belongsTo(EmisorRedSocial::class, 'emisorredsocial_id');
