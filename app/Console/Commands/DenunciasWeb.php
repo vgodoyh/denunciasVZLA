@@ -44,7 +44,7 @@ class DenunciasWeb extends Command
          * Palabras clave GLOBALES (activas), aplican a todos los canales
          * ===================================================== */
         $palabrasClave = PalabrasClaves::where('activo', 1)
-            ->pluck('name')
+            ->pluck('palabra')
             ->map(fn ($p) => $norm($p))
             ->filter()
             ->unique()
