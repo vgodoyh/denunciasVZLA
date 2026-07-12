@@ -7,15 +7,13 @@ use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 use App\Models\EmisorRedSocial;
-use App\Models\PalabraClave;
+use App\Models\PalabrasClaves;
 use App\Models\Denuncia;
 
 use App\Services\Web\RssReaderService;
 use App\Services\Web\WebHtmlScraperService;
 
 use App\Helpers\WebFeedHelper;
-use App\Helpers\KeywordMatcher;
-use App\Models\PalabrasClaves;
 
 class DenunciasWeb extends Command
 {
@@ -41,17 +39,32 @@ class DenunciasWeb extends Command
         };
 
         /* =====================================================
-         * Palabras clave GLOBALES (activas), aplican a todos los canales
+         * Términos del evento (terremoto) — deben aparecer SIEMPRE
+         * (no viven en la tabla palabras_claves, solo en config)
          * ===================================================== */
-        $palabrasClave = PalabrasClaves::where('activo', 1)
-            ->pluck('palabra')
+        $terminosEvento = collect(config('denuncias.terminos_evento'))
             ->map(fn ($p) => $norm($p))
             ->filter()
-            ->unique()
             ->values()
             ->toArray();
 
-        if (empty($palabrasClave)) {
+        /* =====================================================
+         * Palabras clave GLOBALES (activas) — mapa: palabra normalizada => id
+         * Así podemos guardar en la pivot cuáles matchearon exactamente
+         * ===================================================== */
+        $palabrasClaveMap = PalabrasClaves::where('activo', 1)
+            ->get(['id', 'palabra'])
+            ->mapWithKeys(fn ($p) => [$norm($p->palabra) => $p->id])
+            ->reject(fn ($id, $palabra) => in_array($palabra, $terminosEvento))
+            ->filter(fn ($id, $palabra) => $palabra !== '')
+            ->all();
+
+        if (empty($terminosEvento)) {
+            $this->warn('No hay términos de evento configurados en config/denuncias.php, se aborta la corrida.');
+            return Command::SUCCESS;
+        }
+
+        if (empty($palabrasClaveMap)) {
             $this->warn('No hay palabras clave activas, se aborta la corrida (no hay criterio de filtrado).');
             return Command::SUCCESS;
         }
@@ -73,14 +86,8 @@ class DenunciasWeb extends Command
             $this->line("Procesando: {$canal->name}");
 
             try {
-                /* =====================================================
-                 * Construir feed (sin esquema)
-                 * ===================================================== */
                 $feedPath = WebFeedHelper::feedPath($canal->name);
 
-                /* =====================================================
-                 * RSS: HTTPS → HTTP
-                 * ===================================================== */
                 $items = $rss->leer('https://' . $feedPath);
 
                 if (empty($items)) {
@@ -88,9 +95,6 @@ class DenunciasWeb extends Command
                     $items = $rss->leer('http://' . $feedPath);
                 }
 
-                /* =====================================================
-                 * HTML fallback
-                 * ===================================================== */
                 if (empty($items)) {
                     $this->warn('RSS no disponible, usando HTML fallback');
 
@@ -103,46 +107,59 @@ class DenunciasWeb extends Command
                     continue;
                 }
 
-                /* =====================================================
-                 * Procesar ítems
-                 * ===================================================== */
                 foreach ($items as $item) {
 
                     if (!is_array($item) || empty($item['url'])) {
                         continue;
                     }
 
-                    // Normalizar estructura
                     $item = array_merge([
                         'titulo' => null,
                         'contenido' => '',
                         'fecha' => Carbon::now(),
                     ], $item);
 
-                    /* ---------------------------------------------
-                     * Normalizar fecha
-                     * --------------------------------------------- */
                     try {
                         $fecha = Carbon::parse($item['fecha']);
                     } catch (\Throwable $e) {
                         $fecha = Carbon::now();
                     }
 
-                    /* ---------------------------------------------
-                    * FILTRO: RANGO DE FECHAS DEL EVENTO
-                    * --------------------------------------------- */
                     if ($fecha->lt($fechaDesde) || ($fechaHasta && $fecha->gt($fechaHasta))) {
                         continue;
                     }
 
-                    /* ---------------------------------------------
-                     * FILTRO POR PALABRAS CLAVE (global, todos los canales)
-                     * --------------------------------------------- */
                     $texto = $norm(
                         ($item['titulo'] ?? '') . ' ' . ($item['contenido'] ?? '')
                     );
 
-                    if (!KeywordMatcher::matches($texto, $palabrasClave)) {
+                    /* ---------------------------------------------
+                     * 1) ¿Menciona el terremoto en sí? (gate, no se guarda)
+                     * --------------------------------------------- */
+                    $tieneTerminoEvento = false;
+                    foreach ($terminosEvento as $termino) {
+                        if (str_contains($texto, $termino)) {
+                            $tieneTerminoEvento = true;
+                            break;
+                        }
+                    }
+
+                    if (!$tieneTerminoEvento) {
+                        continue;
+                    }
+
+                    /* ---------------------------------------------
+                     * 2) ¿Qué palabras clave generales matchearon?
+                     *    (esto sí se guarda, en la pivot)
+                     * --------------------------------------------- */
+                    $matchedIds = [];
+                    foreach ($palabrasClaveMap as $palabraNorm => $id) {
+                        if (str_contains($texto, $palabraNorm)) {
+                            $matchedIds[] = $id;
+                        }
+                    }
+
+                    if (empty($matchedIds)) {
                         continue;
                     }
 
@@ -157,7 +174,7 @@ class DenunciasWeb extends Command
                         continue;
                     }
 
-                    Denuncia::create([
+                    $denuncia = Denuncia::create([
                         'fecha'              => $fecha,
                         'url'                => $url,
                         'titular'            => $item['titulo'] ?: null,
@@ -167,7 +184,9 @@ class DenunciasWeb extends Command
                         'emisorredsocial_id' => $canal->id,
                     ]);
 
-                    $this->info("Guardado en denuncia: {$url}");
+                    $denuncia->palabrasClaves()->attach($matchedIds);
+
+                    $this->info("Guardado en denuncia: {$url} (" . count($matchedIds) . " palabra(s) clave)");
                 }
 
             } catch (\Throwable $e) {
@@ -180,7 +199,6 @@ class DenunciasWeb extends Command
                 $this->error("Error procesando {$canal->name}");
             }
 
-            // ⏱️ Pausa de cortesía
             sleep(2);
         }
 

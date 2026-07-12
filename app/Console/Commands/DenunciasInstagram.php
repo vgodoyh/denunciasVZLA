@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use App\Models\Denuncia;
 use App\Models\EmisorRedSocial;
-use App\Helpers\KeywordMatcher;
 use App\Models\PalabrasClaves;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -38,27 +37,41 @@ class DenunciasInstagram extends Command
         };
 
         /* =====================================================
-         * Palabras clave GLOBALES (activas), mismas que en denuncias:web
+         * Términos del evento (terremoto) — deben aparecer SIEMPRE
+         * (no viven en la tabla palabras_claves, solo en config)
          * ===================================================== */
-        $palabrasClave = PalabrasClaves::where('activo', 1)
-            ->pluck('palabra')
+        $terminosEvento = collect(config('denuncias.terminos_evento'))
             ->map(fn ($p) => $norm($p))
             ->filter()
-            ->unique()
             ->values()
             ->toArray();
 
-        if (empty($palabrasClave)) {
+        /* =====================================================
+         * Palabras clave GLOBALES (activas) — mapa: palabra normalizada => id
+         * Mismo patrón que denuncias:web, para poder guardar en la pivot
+         * ===================================================== */
+        $palabrasClaveMap = PalabrasClaves::where('activo', 1)
+            ->get(['id', 'palabra'])
+            ->mapWithKeys(fn ($p) => [$norm($p->palabra) => $p->id])
+            ->reject(fn ($id, $palabra) => in_array($palabra, $terminosEvento))
+            ->filter(fn ($id, $palabra) => $palabra !== '')
+            ->all();
+
+        if (empty($terminosEvento)) {
+            $this->warn('No hay términos de evento configurados en config/denuncias.php, se aborta la corrida.');
+            return Command::SUCCESS;
+        }
+
+        if (empty($palabrasClaveMap)) {
             $this->warn('No hay palabras clave activas, se aborta la corrida.');
             return Command::SUCCESS;
         }
 
         $canalesInstagram = EmisorRedSocial::with(['emisor.tipoemisor', 'tipo_red_social'])
-                                            ->whereHas('tipo_red_social', function ($q) {
-                                                $q->whereRaw('UPPER(name) = ?', ['INSTAGRAM']);
-                                            })
-                                            ->where('name', ['esteninf'])
-                                            ->get();
+            ->whereHas('tipo_red_social', function ($q) {
+                $q->whereRaw('UPPER(name) = ?', ['INSTAGRAM']);
+            })
+            ->get();
 
         if ($canalesInstagram->isEmpty()) {
             $this->warn('No hay canales Instagram configurados');
@@ -108,10 +121,35 @@ class DenunciasInstagram extends Command
                     }
 
                     $caption = $post['caption'] ?? $post['text'] ?? '';
-
                     $texto = $norm($caption);
 
-                    if (!KeywordMatcher::matches($texto, $palabrasClave)) {
+                    /* ---------------------------------------------
+                     * 1) ¿Menciona el terremoto en sí? (gate, no se guarda)
+                     * --------------------------------------------- */
+                    $tieneTerminoEvento = false;
+                    foreach ($terminosEvento as $termino) {
+                        if (str_contains($texto, $termino)) {
+                            $tieneTerminoEvento = true;
+                            break;
+                        }
+                    }
+
+                    if (!$tieneTerminoEvento) {
+                        continue;
+                    }
+
+                    /* ---------------------------------------------
+                     * 2) ¿Qué palabras clave generales matchearon?
+                     *    (esto sí se guarda, en la pivot)
+                     * --------------------------------------------- */
+                    $matchedIds = [];
+                    foreach ($palabrasClaveMap as $palabraNorm => $id) {
+                        if (str_contains($texto, $palabraNorm)) {
+                            $matchedIds[] = $id;
+                        }
+                    }
+
+                    if (empty($matchedIds)) {
                         continue;
                     }
 
@@ -124,7 +162,7 @@ class DenunciasInstagram extends Command
                         continue;
                     }
 
-                    Denuncia::create([
+                    $denuncia = Denuncia::create([
                         'fecha'              => $fechaPost,
                         'url'                => $url,
                         'titular'            => $this->generarTitular($caption, $username),
@@ -134,7 +172,9 @@ class DenunciasInstagram extends Command
                         'emisorredsocial_id' => $canal->id,
                     ]);
 
-                    $this->info("Guardado en denuncia: {$url}");
+                    $denuncia->palabrasClaves()->attach($matchedIds);
+
+                    $this->info("Guardado en denuncia: {$url} (" . count($matchedIds) . " palabra(s) clave)");
                 }
             } catch (\Throwable $e) {
                 Log::error('Error en denuncias:instagram', [
@@ -164,6 +204,7 @@ class DenunciasInstagram extends Command
                     'directUrls' => ["https://www.instagram.com/{$username}/"],
                     'resultsType' => 'posts',
                     'resultsLimit' => (int) config('services.apify.instagram_limit', 10),
+                    'onlyPostsNewerThan' => $this->option('desde'),
                 ]
             );
 
