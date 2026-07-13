@@ -192,7 +192,6 @@
                     </div>
                 @endforelse
             </div>
-
             @if ($perPage !== 'all')
                 <div class="mt-3">
                     {{ $denuncias->links('pagination::bootstrap-5') }}
