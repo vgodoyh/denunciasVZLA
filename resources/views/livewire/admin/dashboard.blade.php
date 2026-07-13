@@ -1,19 +1,17 @@
 <div>
-    <div class= "mb-4">
-        <div class="card-body d-flex align-items-center">
-            <div>
-                <h4 class="mb-0">Resumen general</h4>
-                <p class="text-sm text-muted mb-0">Monitoreo de denuncias ciudadanas tras el sismo del 24 de junio de 2026 en Venezuela</p>
-            </div>
+    <div class="mb-4 d-flex align-items-center" style="gap: 12px;">
+        <div>
+            <h4 class="mb-0">Resumen general</h4>
+            <p class="text-sm text-muted mb-0">Monitoreo de denuncias ciudadanas tras el sismo del 24 de junio de 2026 en Venezuela</p>
         </div>
     </div>
 
     <div class="row mb-2">
-        <div class="col-md-3 mb-2">
-            <a href="{{ route('denuncia.index') }}" class="cursor-pointer">
-                <div class="card">
-                    <div class="card-body d-flex align-items-center">
-                        <div class="d-flex align-items-center justify-content-center rounded me-3"
+        <div class="col-6 col-md-3 mb-2">
+            <a href="{{ route('denuncia.index') }}" class="cursor-pointer text-decoration-none">
+                <div class="card h-100">
+                    <div class="card-body d-flex flex-column flex-md-row align-items-center align-items-md-center text-center text-md-start">
+                        <div class="d-flex align-items-center justify-content-center rounded mb-2 mb-md-0 me-md-3"
                             style="width:40px; height:40px; background:#F1EFE8;">
                             <i class="fas fa-hourglass-half" style="font-size:1.1rem; color:#888780;"></i>
                         </div>
@@ -26,10 +24,10 @@
             </a>
         </div>
 
-        <div class="col-md-3 mb-2">
-            <div class="card">
-                <div class="card-body d-flex align-items-center">
-                    <div class="d-flex align-items-center justify-content-center rounded me-3"
+        <div class="col-6 col-md-3 mb-2">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column flex-md-row align-items-center align-items-md-center text-center text-md-start">
+                    <div class="d-flex align-items-center justify-content-center rounded mb-2 mb-md-0 me-md-3"
                         style="width:40px; height:40px; background:#EAF3DE;">
                         <i class="fas fa-check-circle" style="font-size:1.1rem; color:#3B6D11;"></i>
                     </div>
@@ -41,10 +39,10 @@
             </div>
         </div>
 
-        <div class="col-md-3 mb-2">
-            <div class="card">
-                <div class="card-body d-flex align-items-center">
-                    <div class="d-flex align-items-center justify-content-center rounded me-3"
+        <div class="col-6 col-md-3 mb-2">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column flex-md-row align-items-center align-items-md-center text-center text-md-start">
+                    <div class="d-flex align-items-center justify-content-center rounded mb-2 mb-md-0 me-md-3"
                         style="width:40px; height:40px; background:#FCEBEB;">
                         <i class="fas fa-times-circle" style="font-size:1.1rem; color:#A32D2D;"></i>
                     </div>
@@ -56,10 +54,10 @@
             </div>
         </div>
 
-        <div class="col-md-3 mb-2">
-            <div class="card">
-                <div class="card-body d-flex align-items-center">
-                    <div class="d-flex align-items-center justify-content-center rounded me-3"
+        <div class="col-6 col-md-3 mb-2">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column flex-md-row align-items-center align-items-md-center text-center text-md-start">
+                    <div class="d-flex align-items-center justify-content-center rounded mb-2 mb-md-0 me-md-3"
                         style="width:40px; height:40px; background:#EAF2FB;">
                         <i class="fas fa-bullhorn" style="font-size:1.1rem; color:#2D6DA3;"></i>
                     </div>
