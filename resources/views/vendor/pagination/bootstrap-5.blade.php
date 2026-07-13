@@ -59,6 +59,7 @@
                             <span class="page-link" aria-hidden="true">&rsaquo;</span>
                         </li>
                     @endif
+                    
                 </ul>
             </div>
         </div>
