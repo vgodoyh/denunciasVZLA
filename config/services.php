@@ -49,7 +49,7 @@ return [
         ),
         'instagram_limit' => env(
             'APIFY_INSTAGRAM_LIMIT',
-            2000
+            1000
         ),
     ],
 ];

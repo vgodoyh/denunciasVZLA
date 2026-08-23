@@ -628,7 +628,7 @@ class DenunciasInstagram extends Command
             'until' => $desde->format('Y-m-d'),
             'maxItems' => (int) config(
                 'services.apify.instagram_limit',
-                500
+                1000
             ),
         ];
 
