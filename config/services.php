@@ -35,10 +35,21 @@ return [
         ],
     ],
 
-    'apify' => [
+    /*'apify' => [
         'token' => env('APIFY_TOKEN'),
         'instagram_actor' => env('APIFY_INSTAGRAM_ACTOR', 'apify/instagram-scraper'),
         'instagram_limit' => env('APIFY_INSTAGRAM_LIMIT', 15),
-    ],
+    ],*/
 
+    'apify' => [
+        'token' => env('APIFY_TOKEN'),
+        'instagram_actor' => env(
+            'APIFY_INSTAGRAM_ACTOR',
+            'apidojo/instagram-scraper'
+        ),
+        'instagram_limit' => env(
+            'APIFY_INSTAGRAM_LIMIT',
+            500
+        ),
+    ],
 ];

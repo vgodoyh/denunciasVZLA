@@ -100,7 +100,11 @@ class DenunciasInstagram extends Command
 
                 foreach ($posts as $post) {
                     $fechaPost = $this->parseFecha(
-                        $post['timestamp'] ?? $post['date'] ?? $post['takenAt'] ?? null
+                        $post['createdAt']
+                            ?? $post['timestamp']
+                            ?? $post['date']
+                            ?? $post['takenAt']
+                            ?? null
                     );
 
                     if (!$fechaPost) {
@@ -195,26 +199,74 @@ class DenunciasInstagram extends Command
 
     private function obtenerPublicaciones(string $username): array
     {
-        $actor = str_replace('/', '~', config('services.apify.instagram_actor'));
+        $actorConfigurado = config(
+            'services.apify.instagram_actor',
+            'apidojo/instagram-scraper'
+        );
 
-        $response = Http::timeout(180)
-            ->post(
-                "https://api.apify.com/v2/acts/{$actor}/run-sync-get-dataset-items?token=" . config('services.apify.token'),
+        $token = config('services.apify.token');
+
+        if (!$token) {
+            throw new \RuntimeException('No está configurado APIFY_TOKEN.');
+        }
+
+        $actor = str_replace('/', '~', $actorConfigurado);
+
+        $desde = Carbon::parse(
+            $this->option('desde'),
+            $this->timezone
+        )->startOfDay();
+
+        /*
+        * API Dojo usa "until" para indicar que solamente debe
+        * recuperar publicaciones nuevas desde esta fecha.
+        */
+        $input = [
+            'startUrls' => [
                 [
-                    'directUrls' => ["https://www.instagram.com/{$username}/"],
-                    'resultsType' => 'posts',
-                    'resultsLimit' => (int) config('services.apify.instagram_limit', 10),
-                    'onlyPostsNewerThan' => $this->option('desde'),
-                ]
+                    'url' => "https://www.instagram.com/{$username}/",
+                ],
+            ],
+            'until' => $desde->format('Y-m-d'),
+            'maxItems' => (int) config(
+                'services.apify.instagram_limit',
+                500
+            ),
+        ];
+
+        $this->line(
+            "Solicitando publicaciones de {$username} desde " .
+            $desde->format('d/m/Y')
+        );
+
+        $response = Http::timeout(300)
+            ->retry(2, 2000)
+            ->withQueryParameters([
+                'token' => $token,
+            ])
+            ->post(
+                "https://api.apify.com/v2/acts/{$actor}/run-sync-get-dataset-items",
+                $input
             );
 
         if (!$response->successful()) {
-            $this->warn("Apify respondió con error {$response->status()}");
-            $this->line($response->body());
+            $this->warn(
+                "Apify respondió con error {$response->status()}"
+            );
+
+            Log::warning('Error consultando Instagram en Apify', [
+                'username' => $username,
+                'actor' => $actorConfigurado,
+                'status' => $response->status(),
+                'respuesta' => mb_substr($response->body(), 0, 1000),
+            ]);
+
             return [];
         }
 
-        return $response->json() ?? [];
+        $posts = $response->json();
+
+        return is_array($posts) ? $posts : [];
     }
 
     private function normalizarUsuarioInstagram(?string $valor): ?string
