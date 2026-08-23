@@ -271,11 +271,29 @@ class DenunciasInstagram extends Command
                     'Publicaciones recibidas: ' .
                     count($posts)
                 );
+                
+                $estadisticas = [
+                    'procesadas' => 0,
+                    'sin_fecha' => 0,
+                    'fuera_rango' => 0,
+                    'sin_url' => 0,
+                    'sin_contenido' => 0,
+                    'sin_evento' => 0,
+                    'sin_ubicacion' => 0,
+                    'sin_palabras_clave' => 0,
+                    'duplicadas' => 0,
+                    'guardadas' => 0,
+                ];
+
+                $fechaMasAntigua = null;
+                $fechaMasNueva = null;
 
                 foreach ($posts as $post) {
+                    $estadisticas['procesadas']++;
+
                     /*
                     * Obtener la fecha según el campo
-                    * que devuelva el actor.
+                    * que devuelva el actor de Apify.
                     */
                     $fechaValor =
                         $post['createdAt']
@@ -288,10 +306,24 @@ class DenunciasInstagram extends Command
                         ?? null;
 
                     if (is_numeric($fechaValor)) {
-                        $fechaPost = Carbon::createFromTimestamp(
-                            (int) $fechaValor,
-                            'UTC'
-                        )->timezone($this->timezone);
+                        $timestamp = (int) $fechaValor;
+
+                        /*
+                        * Algunos actores devuelven el timestamp
+                        * en milisegundos.
+                        */
+                        if ($timestamp > 9999999999) {
+                            $timestamp = (int) floor($timestamp / 1000);
+                        }
+
+                        try {
+                            $fechaPost = Carbon::createFromTimestamp(
+                                $timestamp,
+                                'UTC'
+                            )->timezone($this->timezone);
+                        } catch (\Throwable) {
+                            $fechaPost = null;
+                        }
                     } else {
                         $fechaPost = $this->parseFecha(
                             $fechaValor
@@ -299,20 +331,35 @@ class DenunciasInstagram extends Command
                     }
 
                     if (!$fechaPost) {
-                        $this->warn(
-                            'Omitido: publicación sin fecha válida.'
-                        );
-
+                        $estadisticas['sin_fecha']++;
                         continue;
                     }
 
                     /*
-                    * Validar rango de fechas.
+                    * Registrar el rango real recibido desde Apify.
+                    */
+                    if (
+                        !$fechaMasAntigua ||
+                        $fechaPost->lt($fechaMasAntigua)
+                    ) {
+                        $fechaMasAntigua = $fechaPost->copy();
+                    }
+
+                    if (
+                        !$fechaMasNueva ||
+                        $fechaPost->gt($fechaMasNueva)
+                    ) {
+                        $fechaMasNueva = $fechaPost->copy();
+                    }
+
+                    /*
+                    * Validar el rango solicitado.
                     */
                     if (
                         $fechaPost->lt($desde) ||
                         ($hasta && $fechaPost->gt($hasta))
                     ) {
+                        $estadisticas['fuera_rango']++;
                         continue;
                     }
 
@@ -328,15 +375,12 @@ class DenunciasInstagram extends Command
                     );
 
                     if ($url === '') {
-                        $this->warn(
-                            'Omitido: publicación sin URL.'
-                        );
-
+                        $estadisticas['sin_url']++;
                         continue;
                     }
 
                     /*
-                    * Obtener y normalizar contenido.
+                    * Obtener el contenido de la publicación.
                     */
                     $caption = trim(
                         (string) (
@@ -349,18 +393,17 @@ class DenunciasInstagram extends Command
                     $texto = $norm($caption);
 
                     if ($texto === '') {
+                        $estadisticas['sin_contenido']++;
                         continue;
                     }
 
                     /*
                     * 1. Debe mencionar el evento:
-                    * terremoto, sismo, temblor, etc.
+                    * terremoto, sismo, temblor, réplica o epicentro.
                     */
                     $tieneTerminoEvento = false;
 
-                    foreach (
-                        $terminosEvento as $termino
-                    ) {
+                    foreach ($terminosEvento as $termino) {
                         if (
                             $contieneTermino(
                                 $texto,
@@ -373,6 +416,7 @@ class DenunciasInstagram extends Command
                     }
 
                     if (!$tieneTerminoEvento) {
+                        $estadisticas['sin_evento']++;
                         continue;
                     }
 
@@ -381,9 +425,7 @@ class DenunciasInstagram extends Command
                     */
                     $tieneUbicacionVenezuela = false;
 
-                    foreach (
-                        $terminosUbicacion as $termino
-                    ) {
+                    foreach ($terminosUbicacion as $termino) {
                         if (
                             $contieneTermino(
                                 $texto,
@@ -396,6 +438,8 @@ class DenunciasInstagram extends Command
                     }
 
                     if (!$tieneUbicacionVenezuela) {
+                        $estadisticas['sin_ubicacion']++;
+
                         $this->warn(
                             "Omitido: terremoto sin relación con Venezuela: {$url}"
                         );
@@ -404,7 +448,7 @@ class DenunciasInstagram extends Command
                     }
 
                     /*
-                    * 3. Identificar palabras clave generales.
+                    * 3. Identificar las palabras clave generales.
                     */
                     $matchedIds = [];
 
@@ -426,17 +470,20 @@ class DenunciasInstagram extends Command
                     );
 
                     if (empty($matchedIds)) {
+                        $estadisticas['sin_palabras_clave']++;
                         continue;
                     }
 
                     /*
-                    * Evitar duplicados, incluso eliminados.
+                    * Evitar duplicados, incluso si fueron eliminados.
                     */
                     $existeEnDenuncia = Denuncia::withTrashed()
                         ->where('url', $url)
                         ->exists();
 
                     if ($existeEnDenuncia) {
+                        $estadisticas['duplicadas']++;
+
                         $this->warn(
                             "Omitido: URL ya existe, incluso eliminada: {$url}"
                         );
@@ -464,12 +511,64 @@ class DenunciasInstagram extends Command
                         ->palabrasClaves()
                         ->attach($matchedIds);
 
+                    $estadisticas['guardadas']++;
+
                     $this->info(
                         "Guardado en denuncia: {$url} (" .
                         count($matchedIds) .
                         ' palabra(s) clave)'
                     );
                 }
+
+                /*
+                * Mostrar el rango recibido desde Apify.
+                */
+                $this->newLine();
+
+                if ($fechaMasAntigua && $fechaMasNueva) {
+                    $this->line(
+                        'Rango recibido: ' .
+                        $fechaMasAntigua->format('d/m/Y H:i:s') .
+                        ' → ' .
+                        $fechaMasNueva->format('d/m/Y H:i:s')
+                    );
+                }
+
+                /*
+                * Mostrar resumen de la cuenta.
+                */
+                $this->info("Resumen de {$username}:");
+                $this->line(
+                    "  Procesadas: {$estadisticas['procesadas']}"
+                );
+                $this->line(
+                    "  Sin fecha: {$estadisticas['sin_fecha']}"
+                );
+                $this->line(
+                    "  Fuera del rango: {$estadisticas['fuera_rango']}"
+                );
+                $this->line(
+                    "  Sin URL: {$estadisticas['sin_url']}"
+                );
+                $this->line(
+                    "  Sin contenido: {$estadisticas['sin_contenido']}"
+                );
+                $this->line(
+                    "  Sin término del evento: {$estadisticas['sin_evento']}"
+                );
+                $this->line(
+                    "  Sin relación con Venezuela: {$estadisticas['sin_ubicacion']}"
+                );
+                $this->line(
+                    "  Sin palabras clave: {$estadisticas['sin_palabras_clave']}"
+                );
+                $this->line(
+                    "  Duplicadas: {$estadisticas['duplicadas']}"
+                );
+                $this->line(
+                    "  Guardadas: {$estadisticas['guardadas']}"
+                );
+
             } catch (\Throwable $e) {
                 Log::error(
                     'Error en denuncias:instagram',
