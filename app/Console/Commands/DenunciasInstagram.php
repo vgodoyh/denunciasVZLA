@@ -295,9 +295,39 @@ class DenunciasInstagram extends Command
             return [];
         }
 
+        /*$posts = $response->json();
+
+        return is_array($posts) ? $posts : [];*/
         $posts = $response->json();
 
-        return is_array($posts) ? $posts : [];
+        if (!is_array($posts)) {
+            $this->warn('Apify devolvió una respuesta que no es un arreglo.');
+            return [];
+        }
+
+        if (!empty($posts)) {
+            $primerElemento = $posts[0] ?? [];
+
+            $this->line(
+                'Campos recibidos: ' .
+                implode(', ', array_keys((array) $primerElemento))
+            );
+
+            $this->line(
+                'Muestra: ' .
+                mb_substr(
+                    json_encode(
+                        $primerElemento,
+                        JSON_UNESCAPED_UNICODE |
+                        JSON_UNESCAPED_SLASHES
+                    ),
+                    0,
+                    2000
+                )
+            );
+        }
+
+        return $posts;
     }
 
     private function normalizarUsuarioInstagram(?string $valor): ?string
