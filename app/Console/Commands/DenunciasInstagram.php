@@ -12,7 +12,13 @@ use Illuminate\Support\Facades\Log;
 
 class DenunciasInstagram extends Command
 {
-    protected $signature = 'denuncias:instagram {--desde=2026-06-24 : Fecha desde la cual capturar} {--hasta= : Fecha límite superior (opcional)}';
+    //protected $signature = 'denuncias:instagram {--desde=2026-06-24 : Fecha desde la cual capturar} {--hasta= : Fecha límite superior (opcional)}';
+    protected $signature = 'denuncias:instagram
+    {--desde=2026-06-24 : Fecha desde la cual capturar}
+    {--hasta= : Fecha límite superior opcional}
+    {--cuenta= : Procesar únicamente esta cuenta}
+    {--max-cuentas= : Cantidad máxima de cuentas a procesar}
+    {--offset=0 : Cantidad de cuentas que se omitirán al comenzar}';
 
     protected $description = 'Monitorea Instagram (vía Apify) y guarda denuncias de acuerdo a palabras claves';
 
@@ -73,10 +79,35 @@ class DenunciasInstagram extends Command
             })
             ->get();
 
+        $cuenta = trim((string) $this->option('cuenta'));
+        $offset = max(0, (int) $this->option('offset'));
+
+        $maxCuentas = $this->option('max-cuentas')
+            ? max(1, (int) $this->option('max-cuentas'))
+            : null;
+
+        if ($cuenta !== '') {
+            $cuenta = $this->normalizarUsuarioInstagram($cuenta);
+
+            $canalesInstagram = $canalesInstagram
+                ->filter(function ($canal) use ($cuenta) {
+                    return $this->normalizarUsuarioInstagram($canal->name) === $cuenta;
+                })
+                ->values();
+        } else {
+            $canalesInstagram = $canalesInstagram
+                ->slice($offset, $maxCuentas)
+                ->values();
+        }
+
         if ($canalesInstagram->isEmpty()) {
-            $this->warn('No hay canales Instagram configurados');
+            $this->warn('No se encontraron cuentas de Instagram para procesar.');
             return Command::SUCCESS;
         }
+
+        $this->info(
+            'Cuentas que se procesarán: ' . $canalesInstagram->count()
+        );
 
         foreach ($canalesInstagram as $canal) {
             $username = $this->normalizarUsuarioInstagram($canal->name);
