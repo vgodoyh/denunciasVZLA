@@ -28,70 +28,177 @@ class DenunciasInstagram extends Command
     {
         $this->info('▶ Iniciando denuncias:instagram');
 
-        $desde = Carbon::parse($this->option('desde'), $this->timezone)->startOfDay();
+        $desde = Carbon::parse(
+            $this->option('desde'),
+            $this->timezone
+        )->startOfDay();
+
         $hasta = $this->option('hasta')
-            ? Carbon::parse($this->option('hasta'), $this->timezone)->endOfDay()
+            ? Carbon::parse(
+                $this->option('hasta'),
+                $this->timezone
+            )->endOfDay()
             : null;
 
-        $this->line("Buscando publicaciones desde {$desde->format('d/m/Y H:i:s')}" . ($hasta ? " hasta {$hasta->format('d/m/Y H:i:s')}" : ' en adelante'));
+        $this->line(
+            "Buscando publicaciones desde {$desde->format('d/m/Y H:i:s')}" .
+            ($hasta
+                ? " hasta {$hasta->format('d/m/Y H:i:s')}"
+                : ' en adelante')
+        );
 
-        $norm = function (?string $s): string {
-            $s = mb_strtolower(trim((string) $s));
-            return strtr($s, [
-                'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n',
+        /*
+        * Normaliza el texto:
+        * minúsculas y sin acentos.
+        */
+        $norm = function (?string $texto): string {
+            $texto = mb_strtolower(
+                trim((string) $texto)
+            );
+
+            return strtr($texto, [
+                'á' => 'a',
+                'é' => 'e',
+                'í' => 'i',
+                'ó' => 'o',
+                'ú' => 'u',
+                'ü' => 'u',
+                'ñ' => 'n',
             ]);
         };
 
-        /* =====================================================
-         * Términos del evento (terremoto) — deben aparecer SIEMPRE
-         * (no viven en la tabla palabras_claves, solo en config)
-         * ===================================================== */
-        $terminosEvento = collect(config('denuncias.terminos_evento'))
-            ->map(fn ($p) => $norm($p))
+        /*
+        * Busca palabras o frases completas.
+        */
+        $contieneTermino = function (
+            string $texto,
+            string $termino
+        ): bool {
+            return preg_match(
+                '/(?<![\pL\pN])' .
+                preg_quote($termino, '/') .
+                '(?![\pL\pN])/u',
+                $texto
+            ) === 1;
+        };
+
+        /*
+        * Términos del evento:
+        * terremoto, sismo, temblor, etc.
+        */
+        $terminosEvento = collect(
+            config('denuncias.terminos_evento', [])
+        )
+            ->map(fn ($termino) => $norm($termino))
             ->filter()
             ->values()
             ->toArray();
 
-        /* =====================================================
-         * Palabras clave GLOBALES (activas) — mapa: palabra normalizada => id
-         * Mismo patrón que denuncias:web, para poder guardar en la pivot
-         * ===================================================== */
-        $palabrasClaveMap = PalabrasClaves::where('activo', 1)
+        /*
+        * Términos de ubicación:
+        * Venezuela, estados y ciudades.
+        */
+        $terminosUbicacion = collect(
+            config('denuncias.terminos_ubicacion', [])
+        )
+            ->map(fn ($termino) => $norm($termino))
+            ->filter()
+            ->values()
+            ->toArray();
+
+        /*
+        * Palabras clave activas.
+        */
+        $palabrasClaveMap = PalabrasClaves::where(
+            'activo',
+            1
+        )
             ->get(['id', 'palabra'])
-            ->mapWithKeys(fn ($p) => [$norm($p->palabra) => $p->id])
-            ->reject(fn ($id, $palabra) => in_array($palabra, $terminosEvento))
-            ->filter(fn ($id, $palabra) => $palabra !== '')
+            ->mapWithKeys(
+                fn ($palabra) => [
+                    $norm($palabra->palabra) => $palabra->id,
+                ]
+            )
+            ->reject(
+                fn ($id, $palabra) =>
+                    in_array($palabra, $terminosEvento, true)
+            )
+            ->filter(
+                fn ($id, $palabra) => $palabra !== ''
+            )
             ->all();
 
         if (empty($terminosEvento)) {
-            $this->warn('No hay términos de evento configurados en config/denuncias.php, se aborta la corrida.');
+            $this->warn(
+                'No hay términos del evento configurados.'
+            );
+
+            return Command::SUCCESS;
+        }
+
+        if (empty($terminosUbicacion)) {
+            $this->warn(
+                'No hay términos de ubicación configurados.'
+            );
+
             return Command::SUCCESS;
         }
 
         if (empty($palabrasClaveMap)) {
-            $this->warn('No hay palabras clave activas, se aborta la corrida.');
+            $this->warn(
+                'No hay palabras clave activas, se aborta la corrida.'
+            );
+
             return Command::SUCCESS;
         }
 
-        $canalesInstagram = EmisorRedSocial::with(['emisor.tipoemisor', 'tipo_red_social'])
-            ->whereHas('tipo_red_social', function ($q) {
-                $q->whereRaw('UPPER(name) = ?', ['INSTAGRAM']);
-            })
+        /*
+        * Buscar canales de Instagram.
+        */
+        $canalesInstagram = EmisorRedSocial::with([
+            'emisor.tipoemisor',
+            'tipo_red_social',
+        ])
+            ->whereHas(
+                'tipo_red_social',
+                function ($query) {
+                    $query->whereRaw(
+                        'UPPER(name) = ?',
+                        ['INSTAGRAM']
+                    );
+                }
+            )
             ->get();
 
-        $cuenta = trim((string) $this->option('cuenta'));
-        $offset = max(0, (int) $this->option('offset'));
+        /*
+        * Ejecución por cuenta o por lotes.
+        */
+        $cuenta = trim(
+            (string) $this->option('cuenta')
+        );
+
+        $offset = max(
+            0,
+            (int) $this->option('offset')
+        );
 
         $maxCuentas = $this->option('max-cuentas')
-            ? max(1, (int) $this->option('max-cuentas'))
+            ? max(
+                1,
+                (int) $this->option('max-cuentas')
+            )
             : null;
 
         if ($cuenta !== '') {
-            $cuenta = $this->normalizarUsuarioInstagram($cuenta);
+            $cuenta = $this->normalizarUsuarioInstagram(
+                $cuenta
+            );
 
             $canalesInstagram = $canalesInstagram
                 ->filter(function ($canal) use ($cuenta) {
-                    return $this->normalizarUsuarioInstagram($canal->name) === $cuenta;
+                    return $this->normalizarUsuarioInstagram(
+                        $canal->name
+                    ) === $cuenta;
                 })
                 ->values();
         } else {
@@ -101,69 +208,165 @@ class DenunciasInstagram extends Command
         }
 
         if ($canalesInstagram->isEmpty()) {
-            $this->warn('No se encontraron cuentas de Instagram para procesar.');
+            $this->warn(
+                'No se encontraron cuentas de Instagram para procesar.'
+            );
+
             return Command::SUCCESS;
         }
 
         $this->info(
-            'Cuentas que se procesarán: ' . $canalesInstagram->count()
+            'Cuentas que se procesarán: ' .
+            $canalesInstagram->count()
         );
 
+        /*
+        * Procesar cuentas.
+        */
         foreach ($canalesInstagram as $canal) {
-            $username = $this->normalizarUsuarioInstagram($canal->name);
+            $username = $this->normalizarUsuarioInstagram(
+                $canal->name
+            );
 
             if (!$username) {
                 continue;
             }
 
             $this->line('');
-            $this->line("Procesando Instagram: {$username}");
+            $this->line(
+                "Procesando Instagram: {$username}"
+            );
 
             try {
-                $posts = $this->obtenerPublicaciones($username);
+                $posts = $this->obtenerPublicaciones(
+                    $username
+                );
+
+                /*
+                * Quitar respuestas noResults y elementos
+                * que no sean publicaciones.
+                */
+                $posts = collect($posts)
+                    ->filter(function ($post) {
+                        return is_array($post)
+                            && empty($post['noResults'])
+                            && !empty(
+                                $post['url']
+                                ?? $post['permalink']
+                                ?? null
+                            );
+                    })
+                    ->values()
+                    ->all();
 
                 if (empty($posts)) {
-                    $this->warn("Sin publicaciones devueltas para {$username}");
+                    $this->warn(
+                        "Sin publicaciones válidas para {$username}"
+                    );
+
                     continue;
                 }
 
-                $this->info('Publicaciones recibidas: ' . count($posts));
+                $this->info(
+                    'Publicaciones recibidas: ' .
+                    count($posts)
+                );
 
                 foreach ($posts as $post) {
-                    $fechaPost = $this->parseFecha(
+                    /*
+                    * Obtener la fecha según el campo
+                    * que devuelva el actor.
+                    */
+                    $fechaValor =
                         $post['createdAt']
-                            ?? $post['timestamp']
-                            ?? $post['date']
-                            ?? $post['takenAt']
-                            ?? null
-                    );
+                        ?? $post['created_at']
+                        ?? $post['timestamp']
+                        ?? $post['takenAt']
+                        ?? $post['taken_at']
+                        ?? $post['taken_at_timestamp']
+                        ?? $post['date']
+                        ?? null;
+
+                    if (is_numeric($fechaValor)) {
+                        $fechaPost = Carbon::createFromTimestamp(
+                            (int) $fechaValor,
+                            'UTC'
+                        )->timezone($this->timezone);
+                    } else {
+                        $fechaPost = $this->parseFecha(
+                            $fechaValor
+                        );
+                    }
 
                     if (!$fechaPost) {
-                        $this->warn('Omitido: publicación sin fecha');
+                        $this->warn(
+                            'Omitido: publicación sin fecha válida.'
+                        );
+
                         continue;
                     }
 
-                    if ($fechaPost->lt($desde) || ($hasta && $fechaPost->gt($hasta))) {
-                        $this->warn('Omitido: fuera del rango de fechas');
+                    /*
+                    * Validar rango de fechas.
+                    */
+                    if (
+                        $fechaPost->lt($desde) ||
+                        ($hasta && $fechaPost->gt($hasta))
+                    ) {
                         continue;
                     }
 
-                    $url = $post['url'] ?? $post['permalink'] ?? null;
+                    /*
+                    * Obtener URL.
+                    */
+                    $url = trim(
+                        (string) (
+                            $post['url']
+                            ?? $post['permalink']
+                            ?? ''
+                        )
+                    );
 
-                    if (!$url) {
-                        $this->warn('Omitido: publicación sin URL');
+                    if ($url === '') {
+                        $this->warn(
+                            'Omitido: publicación sin URL.'
+                        );
+
                         continue;
                     }
 
-                    $caption = $post['caption'] ?? $post['text'] ?? '';
+                    /*
+                    * Obtener y normalizar contenido.
+                    */
+                    $caption = trim(
+                        (string) (
+                            $post['caption']
+                            ?? $post['text']
+                            ?? ''
+                        )
+                    );
+
                     $texto = $norm($caption);
 
-                    /* ---------------------------------------------
-                     * 1) ¿Menciona el terremoto en sí? (gate, no se guarda)
-                     * --------------------------------------------- */
+                    if ($texto === '') {
+                        continue;
+                    }
+
+                    /*
+                    * 1. Debe mencionar el evento:
+                    * terremoto, sismo, temblor, etc.
+                    */
                     $tieneTerminoEvento = false;
-                    foreach ($terminosEvento as $termino) {
-                        if (str_contains($texto, $termino)) {
+
+                    foreach (
+                        $terminosEvento as $termino
+                    ) {
+                        if (
+                            $contieneTermino(
+                                $texto,
+                                $termino
+                            )
+                        ) {
                             $tieneTerminoEvento = true;
                             break;
                         }
@@ -173,57 +376,122 @@ class DenunciasInstagram extends Command
                         continue;
                     }
 
-                    /* ---------------------------------------------
-                     * 2) ¿Qué palabras clave generales matchearon?
-                     *    (esto sí se guarda, en la pivot)
-                     * --------------------------------------------- */
+                    /*
+                    * 2. Debe tener relación con Venezuela.
+                    */
+                    $tieneUbicacionVenezuela = false;
+
+                    foreach (
+                        $terminosUbicacion as $termino
+                    ) {
+                        if (
+                            $contieneTermino(
+                                $texto,
+                                $termino
+                            )
+                        ) {
+                            $tieneUbicacionVenezuela = true;
+                            break;
+                        }
+                    }
+
+                    if (!$tieneUbicacionVenezuela) {
+                        $this->warn(
+                            "Omitido: terremoto sin relación con Venezuela: {$url}"
+                        );
+
+                        continue;
+                    }
+
+                    /*
+                    * 3. Identificar palabras clave generales.
+                    */
                     $matchedIds = [];
-                    foreach ($palabrasClaveMap as $palabraNorm => $id) {
-                        if (str_contains($texto, $palabraNorm)) {
+
+                    foreach (
+                        $palabrasClaveMap as $palabraNorm => $id
+                    ) {
+                        if (
+                            $contieneTermino(
+                                $texto,
+                                $palabraNorm
+                            )
+                        ) {
                             $matchedIds[] = $id;
                         }
                     }
+
+                    $matchedIds = array_values(
+                        array_unique($matchedIds)
+                    );
 
                     if (empty($matchedIds)) {
                         continue;
                     }
 
+                    /*
+                    * Evitar duplicados, incluso eliminados.
+                    */
                     $existeEnDenuncia = Denuncia::withTrashed()
                         ->where('url', $url)
                         ->exists();
 
                     if ($existeEnDenuncia) {
-                        $this->warn("Omitido: URL ya existe, incluso eliminada: {$url}");
+                        $this->warn(
+                            "Omitido: URL ya existe, incluso eliminada: {$url}"
+                        );
+
                         continue;
                     }
 
+                    /*
+                    * Guardar denuncia.
+                    */
                     $denuncia = Denuncia::create([
-                        'fecha'              => $fechaPost,
-                        'url'                => $url,
-                        'titular'            => $this->generarTitular($caption, $username),
-                        'contenido'          => $caption,
-                        'estatus'            => 'pendiente',
-                        'emisor_id'          => $canal->emisor?->id,
+                        'fecha' => $fechaPost,
+                        'url' => $url,
+                        'titular' => $this->generarTitular(
+                            $caption,
+                            $username
+                        ),
+                        'contenido' => $caption,
+                        'estatus' => 'pendiente',
+                        'emisor_id' => $canal->emisor?->id,
                         'emisorredsocial_id' => $canal->id,
                     ]);
 
-                    $denuncia->palabrasClaves()->attach($matchedIds);
+                    $denuncia
+                        ->palabrasClaves()
+                        ->attach($matchedIds);
 
-                    $this->info("Guardado en denuncia: {$url} (" . count($matchedIds) . " palabra(s) clave)");
+                    $this->info(
+                        "Guardado en denuncia: {$url} (" .
+                        count($matchedIds) .
+                        ' palabra(s) clave)'
+                    );
                 }
             } catch (\Throwable $e) {
-                Log::error('Error en denuncias:instagram', [
-                    'canal' => $canal->name,
-                    'error' => $e->getMessage(),
-                ]);
+                Log::error(
+                    'Error en denuncias:instagram',
+                    [
+                        'canal' => $canal->name,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]
+                );
 
-                $this->error("Error procesando {$canal->name}: {$e->getMessage()}");
+                $this->error(
+                    "Error procesando {$canal->name}: " .
+                    $e->getMessage()
+                );
             }
 
             sleep(2);
         }
 
-        $this->info('✔ denuncias:instagram finalizado');
+        $this->info(
+            '✔ denuncias:instagram finalizado'
+        );
 
         return Command::SUCCESS;
     }
@@ -301,29 +569,29 @@ class DenunciasInstagram extends Command
         $posts = $response->json();
 
         if (!is_array($posts)) {
-            $this->warn('Apify devolvió una respuesta que no es un arreglo.');
             return [];
         }
 
-        if (!empty($posts)) {
-            $primerElemento = $posts[0] ?? [];
+        $posts = collect($posts)
+            ->filter(function ($post) {
+                return is_array($post)
+                    && empty($post['noResults'])
+                    && !empty($post['url'])
+                    && !empty(
+                        $post['createdAt']
+                        ?? $post['created_at']
+                        ?? $post['timestamp']
+                        ?? $post['takenAt']
+                        ?? $post['taken_at']
+                        ?? null
+                    );
+            })
+            ->values()
+            ->all();
 
-            $this->line(
-                'Campos recibidos: ' .
-                implode(', ', array_keys((array) $primerElemento))
-            );
-
-            $this->line(
-                'Muestra: ' .
-                mb_substr(
-                    json_encode(
-                        $primerElemento,
-                        JSON_UNESCAPED_UNICODE |
-                        JSON_UNESCAPED_SLASHES
-                    ),
-                    0,
-                    2000
-                )
+        if (empty($posts)) {
+            $this->warn(
+                'Apify no devolvió publicaciones válidas para esta cuenta.'
             );
         }
 
