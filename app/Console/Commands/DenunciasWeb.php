@@ -88,19 +88,41 @@ class DenunciasWeb extends Command
             try {
                 $feedPath = WebFeedHelper::feedPath($canal->name);
 
-                $items = $rss->leer('https://' . $feedPath);
+                $itemsRss = $rss->leer('https://' . $feedPath);
 
-                if (empty($items)) {
-                    $this->warn('HTTPS no respondió, probando HTTP');
-                    $items = $rss->leer('http://' . $feedPath);
+                if (empty($itemsRss)) {
+                    $this->warn('HTTPS no respondió, probando RSS por HTTP');
+                    $itemsRss = $rss->leer('http://' . $feedPath);
                 }
 
-                if (empty($items)) {
-                    $this->warn('RSS no disponible, usando HTML fallback');
+                $itemsRss = is_array($itemsRss) ? $itemsRss : [];
 
-                    $baseUrl = preg_replace('#/feed$#i', '', 'https://' . $feedPath);
-                    $items = $htmlScraper->scrape($baseUrl);
-                }
+                $baseUrl = preg_replace(
+                    '#/feed/?$#i',
+                    '',
+                    'https://' . $feedPath
+                );
+
+                $this->line("Scrapeando hasta 10 páginas de: {$baseUrl}");
+
+                $itemsHtml = $htmlScraper->scrape(
+                    baseUrl: $baseUrl,
+                    maxPaginas: 10,
+                    limitePorPagina: 30
+                );
+
+                $items = collect(array_merge($itemsRss, $itemsHtml))
+                    ->filter(
+                        fn ($item) =>
+                            is_array($item) &&
+                            !empty($item['url'])
+                    )
+                    ->unique(
+                        fn ($item) =>
+                            rtrim(strtok(trim($item['url']), '?'), '/')
+                    )
+                    ->values()
+                    ->all();
 
                 if (empty($items)) {
                     $this->warn("Sin resultados para {$canal->name}");
@@ -119,10 +141,16 @@ class DenunciasWeb extends Command
                         'fecha' => Carbon::now(),
                     ], $item);
 
+                    if (empty($item['fecha'])) {
+                        $this->warn("Omitido: no se pudo determinar la fecha: {$item['url']}");
+                        continue;
+                    }
+
                     try {
                         $fecha = Carbon::parse($item['fecha']);
                     } catch (\Throwable $e) {
-                        $fecha = Carbon::now();
+                        $this->warn("Omitido: fecha inválida: {$item['url']}");
+                        continue;
                     }
 
                     if ($fecha->lt($fechaDesde) || ($fechaHasta && $fecha->gt($fechaHasta))) {
