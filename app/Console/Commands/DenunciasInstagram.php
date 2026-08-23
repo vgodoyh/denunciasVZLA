@@ -271,7 +271,7 @@ class DenunciasInstagram extends Command
                     'Publicaciones recibidas: ' .
                     count($posts)
                 );
-                
+
                 $estadisticas = [
                     'procesadas' => 0,
                     'sin_fecha' => 0,
@@ -637,10 +637,10 @@ class DenunciasInstagram extends Command
             $desde->format('d/m/Y')
         );
 
-        $response = Http::timeout(300)
-            ->retry(2, 2000)
+        $response = Http::timeout(310)
             ->withQueryParameters([
                 'token' => $token,
+                'maxTotalChargeUsd' => 1.10,
             ])
             ->post(
                 "https://api.apify.com/v2/acts/{$actor}/run-sync-get-dataset-items",
